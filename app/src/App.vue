@@ -11,7 +11,6 @@
     <button class="btn btn-success mx-2" @click="removeBot()">- Bot</button>
 
     <h5 class="my-5">Total Bot: {{ bots.length }}</h5>
-    {{ bots }}
     <div class="row">
       <div class="col">
         Pending ({{ pendingOrder.length }})
@@ -62,14 +61,6 @@ export default {
       COMPLETED: 2,
     },
   }),
-
-  mounted() {
-    // setInterval(() => {
-    //   this.bots.forEach((bot, index) => {
-    //     this.processOrder(bot, index);
-    //   });
-    // }, 500);
-  },
 
   methods: {
     orderLabel(order) {
@@ -141,7 +132,6 @@ export default {
         bot.order_id = order.id;
         order.status = this.status.PROCESSING;
 
-        // order.countdown = order.vip ? this.config.bot.countdown.vip : this.config.bot.countdown.normal;
         order.countdown = this.config.bot.version.countdown[bot.version];
         order.timer = setInterval(() => {
           order.countdown--;
@@ -163,6 +153,7 @@ export default {
       });
     }
   },
+
 
   computed: {
     pendingOrder() {
