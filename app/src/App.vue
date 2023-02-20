@@ -6,10 +6,12 @@
     <button class="btn btn-success mx-2" @click="addOrder(true)">
       Add VIP Order
     </button>
-    <button class="btn btn-success mx-2" @click="addBot()">+ Bot</button>
+    <button class="btn btn-success mx-2" @click="addBot(1)">+ Bot</button>
+    <button class="btn btn-success mx-2" @click="addBot(2)">+ Bot (v2)</button>
     <button class="btn btn-success mx-2" @click="removeBot()">- Bot</button>
 
     <h5 class="my-5">Total Bot: {{ bots.length }}</h5>
+    {{ bots }}
     <div class="row">
       <div class="col">
         Pending ({{ pendingOrder.length }})
@@ -20,7 +22,7 @@
       <div class="col">
         Processing ({{ processingOrder.length }})
         <p v-for="order in processingOrder" :key="order.id">
-          {{ orderLabel(order) }}
+          {{ orderLabel(order) }} ({{ order.countdown }})
         </p>
       </div>
       <div class="col">
@@ -42,6 +44,13 @@ export default {
     config: {
       bot: {
         threshold: 20,
+        version: {
+          countdown: {
+            1: 10,
+            2: 5,
+          },
+        }
+
       },
     },
     orderId: 1,
@@ -55,11 +64,11 @@ export default {
   }),
 
   mounted() {
-    setInterval(() => {
-      this.bots.forEach((bot, index) => {
-        this.processOrder(bot, index);
-      });
-    }, 500);
+    // setInterval(() => {
+    //   this.bots.forEach((bot, index) => {
+    //     this.processOrder(bot, index);
+    //   });
+    // }, 500);
   },
 
   methods: {
@@ -72,6 +81,8 @@ export default {
         id: this.orderId++,
         status: this.status.PENDING,
         vip: vip,
+        countdown: 0,
+        timer: null,
       });
 
       if (vip) {
@@ -79,17 +90,15 @@ export default {
           if (order1.vip && order2.vip) {
             return order1.id - order2.id;
           } else {
-            if (order1.vip && order2.vip == false) {
-              return -1;
-            } else {
-              return 1;
-            }
+            return  order2.vip - order1.vip;
           }
         });
       }
+
+      this.processOrders();
     },
 
-    addBot() {
+    addBot(version) {
       if (this.bots.length >= this.config.bot.threshold) {
         return;
       }
@@ -97,7 +106,16 @@ export default {
       this.bots.push({
         order_id: null,
         timer: null,
+        version: version,
       });
+
+      //sort bot by version
+      this.bots = this.bots.sort((bot1, bot2) => {
+        return bot2.version - bot1.version;
+      });
+
+      this.processOrders();
+
     },
 
     removeBot() {
@@ -106,7 +124,7 @@ export default {
       if (bot.order_id) {
         var order = this.orders.find((order) => order.id == bot.order_id);
         order.status = this.status.PENDING;
-        clearTimeout(bot.timer);
+        clearInterval(order.timer);
       }
 
       this.bots.splice(index, 1);
@@ -122,13 +140,28 @@ export default {
       if (order != null) {
         bot.order_id = order.id;
         order.status = this.status.PROCESSING;
-        bot.timer = setTimeout(() => {
-          order.status = this.status.COMPLETED;
-          bot.order_id = null;
-          bot.timer = null;
-        }, 1000 * 10);
+
+        // order.countdown = order.vip ? this.config.bot.countdown.vip : this.config.bot.countdown.normal;
+        order.countdown = this.config.bot.version.countdown[bot.version];
+        order.timer = setInterval(() => {
+          order.countdown--;
+          if(order.countdown <= 0) {
+            clearInterval(order.timer);
+            order.status = this.status.COMPLETED;
+            bot.order_id = null;
+            bot.timer = null;
+
+            this.processOrders();
+          }
+        }, 1000);
       }
     },
+
+    processOrders() {
+      this.bots.forEach((bot, index) => {
+        this.processOrder(bot, index);
+      });
+    }
   },
 
   computed: {
@@ -146,12 +179,6 @@ export default {
       return this.orders.filter((order) => {
         return order.status === this.status.COMPLETED;
       });
-    },
-  },
-
-  filters: {
-    orderLabel(val) {
-      return `${val.id} ${val.vip == true ? "(VIP)" : ""}`;
     },
   },
 };
